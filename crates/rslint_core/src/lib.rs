@@ -47,7 +47,7 @@ use crate::directives::skip_node;
 pub use crate::directives::{apply_top_level_directives, Directive, DirectiveParser};
 use dyn_clone::clone_box;
 use rayon::prelude::*;
-use rslint_parser::{parse_module, parse_text, util::SyntaxNodeExt, SyntaxKind, SyntaxNode};
+use rslint_parser::{parse_with_syntax, util::SyntaxNodeExt, Syntax, SyntaxKind, SyntaxNode};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -110,17 +110,12 @@ impl LintResult<'_> {
 pub fn lint_file(
     file_id: usize,
     file_source: impl AsRef<str>,
-    module: bool,
+    syntax: Syntax,
     store: &CstRuleStore,
     verbose: bool,
 ) -> Result<LintResult, Diagnostic> {
-    let (parser_diagnostics, green) = if module {
-        let parse = parse_module(file_source.as_ref(), file_id);
-        (parse.errors().to_owned(), parse.green())
-    } else {
-        let parse = parse_text(file_source.as_ref(), file_id);
-        (parse.errors().to_owned(), parse.green())
-    };
+    let parse = parse_with_syntax(file_source.as_ref(), file_id, syntax);
+    let (parser_diagnostics, green) = (parse.errors().to_owned(), parse.green());
     lint_file_inner(
         SyntaxNode::new_root(green),
         parser_diagnostics,
